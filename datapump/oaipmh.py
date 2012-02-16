@@ -172,6 +172,66 @@ class NSDL(OAIDC):
         
         return (repo_id, doc)
 
+class CommPara(OAIDC):
+    def __init__(self, identity, config, namespaces):
+        OAIDC.__init__(self, identity, config, namespaces)
+        
+    def format(self, record):
+        doc = self.get_doc_template()
+        resource_locator = record.xpath("oai:metadata/comm_para:commParadata/comm_para:usageDataResourceURL/text()", namespaces=self.namespaces)
+        
+        if resource_locator == None or len(resource_locator) == 0:
+            return (None, None)
+        
+        try:
+            (scheme, netloc, _, _, _, _) = urlparse(resource_locator[0])
+            if scheme == '' or netloc == '':
+                return (None, None)
+        except:
+            log.exception("Not a URL: %s", resource_locator[0])
+            return (None, None)
+        
+        try:
+            repo_id = record.xpath("oai:header/oai:identifier[1]/text()", namespaces=self.namespaces)[0]
+        except:
+            repo_id = None
+        
+        
+        payload = record.xpath("oai:metadata/comm_para:commParadata", namespaces=self.namespaces)
+        collection = record.xpath("oai:header/oai:setSpec[1]/text()", namespaces=self.namespaces)
+        schemaLocation = record.xpath("oai:metadata/comm_para:commParadata/@xsi:schemaLocation", namespaces=self.namespaces)
+        
+        doc["resource_locator"] = resource_locator[0].strip()
+        
+        #comm_para doesn't really include subject or edLevel
+        #subject = record.xpath("oai:metadata/commParadata/dc:subject/text()", namespaces=self.namespaces)
+        #language = record.xpath("oai:metadata/commParadata/paradataTitle/@language", namespaces=self.namespaces)
+        #edLevel = record.xpath("oai:metadata/commParadata/dct:educationLevel/text()", namespaces=self.namespaces)
+        #doc["keys"].extend(map(lambda x: x.strip(), subject))
+        #doc["keys"].extend(map(lambda x: x.strip(), language))
+        #doc["keys"].extend(map(lambda x: x.strip(), edLevel))
+        
+        doc["keys"].extend(map(lambda x: x.strip(), collection))
+
+        doc = self._setLRTestData(doc)
+        doc["keys"] = self._unique(doc["keys"])
+        
+        doc["payload_schema"].append("comm_para")
+        doc["payload_schema_locator"] = schemaLocation[0].strip()
+        
+        doc["payload_placement"] = "inline"
+        doc["resource_data"] = etree.tostring(payload[0]).strip()
+        
+        for key in doc.keys():
+            if (doc[key] == None):
+                del doc[key]
+                
+        # signer has a problem with encoding descendents of string type
+        doc = eval(repr(doc))
+                
+        return (repo_id, doc)
+
+
 class Fetcher():
     def __init__(self, namespaces=None, conf=None):
         self.WAIT_DEFAULT = 120 # two minutes
@@ -182,6 +242,7 @@ class Fetcher():
               "dc":"http://purl.org/dc/elements/1.1/",
               "dct":"http://purl.org/dc/terms/",
               "nsdl_dc":"http://ns.nsdl.org/nsdl_dc_v1.02/",
+              "comm_para":"http://ns.nsdl.org/ncs/comm_para",
               "ieee":"http://www.ieee.org/xsd/LOMv1p0",
               "xsi":"http://www.w3.org/2001/XMLSchema-instance"
               }

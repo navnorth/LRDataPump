@@ -20,3 +20,4 @@ parts
 *.tmp*
 .DS_Store
 ~*
+config_files

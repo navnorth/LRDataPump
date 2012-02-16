@@ -14,7 +14,7 @@
 from __future__ import division
 from LRSignature.sign import Sign
 from datapump.couchdb import CouchDB
-from datapump.oaipmh import NSDL, OAIDC
+from datapump.oaipmh import NSDL, OAIDC, CommPara
 from datetime import datetime
 from filelock.filelock import FileLock, FileLockException
 from urllib2 import HTTPError
@@ -114,6 +114,7 @@ class Opts:
             "dc":"http://purl.org/dc/elements/1.1/",
             "dct":"http://purl.org/dc/terms/",
             "nsdl_dc":"http://ns.nsdl.org/nsdl_dc_v1.02/",
+            "comm_para":"http://ns.nsdl.org/ncs/comm_para",
             "ieee":"http://www.ieee.org/xsd/LOMv1p0",
             "xsi":"http://www.w3.org/2001/XMLSchema-instance"
         }
@@ -210,6 +211,8 @@ class Run():
         if self.opts.settings["config"]["metadataPrefix"] == "nsdl_dc":
             col_names = self.fetcher.fetchCollections()
             self.transformer = NSDL(identity=self.identity, config=self.config, namespaces=self.namespaces, col_map=col_names)
+        elif self.opts.settings["config"]["metadataPrefix"] == "comm_para":
+            self.transformer = CommPara(identity=self.identity, config=self.config, namespaces=self.namespaces)
         elif self.opts.settings["config"]["metadataPrefix"] == "oai_dc":
             self.transformer = OAIDC(identity=self.identity, config=self.config, namespaces=self.namespaces)
         else:
@@ -343,6 +346,7 @@ class Run():
                             log.error("REPOID:{repoid} DOCID:{docid} ERROR: {msg}".format(repoid=repo_id, docid=result["doc_ID"], msg=result["error"]))
                         else:
                             published = True
+                            log.info("Published doc id : %s", result["doc_ID"])
                         self.couch.saw(repo_id, published)
                      
                     pubcount = numDocs - nonpubcount
